@@ -94,6 +94,23 @@ h1, h2, h3 { letter-spacing: 0.5px; }
   background: rgba(4, 26, 13, 0.75);
 }
 
+.version-badge {
+  position: fixed;
+  bottom: 8px;
+  right: 10px;
+  z-index: 50;
+  font-size: 0.72rem;
+  color: rgba(242, 247, 238, 0.45);
+  background: rgba(4, 26, 13, 0.6);
+  border: 1px solid rgba(242, 247, 238, 0.2);
+  border-radius: 8px;
+  padding: 2px 9px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.gamefoot .ver { opacity: 0.6; font-variant-numeric: tabular-nums; }
+
 button {
   font-family: inherit;
   cursor: pointer;

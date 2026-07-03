@@ -670,7 +670,8 @@
   // ---------- Footer / Mute ----------
   function addFooter(btnLabel, onLeave, text) {
     const f = el('footer', 'gamefoot');
-    f.innerHTML = text || 'Bolzplatz-Legenden – gespeichert wird automatisch vor jedem Spiel.';
+    f.innerHTML = (text || 'Bolzplatz-Legenden – gespeichert wird automatisch vor jedem Spiel.') +
+      ` <span class="ver">v${esc(D.VERSION)} · ${esc(D.BUILD)}</span>`;
     const btn = el('button', 'btn-ghost', btnLabel);
     btn.addEventListener('click', () => {
       sfxClick();
@@ -690,7 +691,16 @@
     document.body.appendChild(b);
   }
 
+  // Immer sichtbares Versions-Badge (zur Deploy-Kontrolle)
+  function initVersionBadge() {
+    const v = el('div', 'version-badge');
+    v.textContent = `v${D.VERSION} · Build ${D.BUILD}`;
+    v.title = 'Version und Build-Zeitpunkt – zeigt, welcher Stand deployt ist.';
+    document.body.appendChild(v);
+  }
+
   // Los geht's
   initMuteToggle();
+  initVersionBadge();
   showTitle();
 })();
