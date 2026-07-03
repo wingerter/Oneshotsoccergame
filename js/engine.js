@@ -67,9 +67,11 @@
     };
     if (chance(0.6)) {
       let q = pick(D.QUIRKS);
-      // Torwart-Quirk nur für TW sinnvoll, Feld-Quirks nicht für TW
-      if (pos === 'TW' && ['showman', 'tunnelblick', 'angsthase'].includes(q.id)) q = D.QUIRKS.find(x => x.id === 'fliegenfaenger');
-      if (pos !== 'TW' && q.id === 'fliegenfaenger') q = pick(D.QUIRKS.filter(x => x.id !== 'fliegenfaenger'));
+      // Manche Marotten wirken nur beim Torwart oder nie beim Torwart (der nie dribbelt/schießt/passt als Feldspieler)
+      const TW_ONLY = ['fliegenfaenger', 'eisblock'];
+      const OUTFIELD_ONLY = ['showman', 'tunnelblick', 'angsthase', 'zauberfuss', 'schwalbenkoenig'];
+      if (pos === 'TW' && OUTFIELD_ONLY.includes(q.id)) q = pick(D.QUIRKS.filter(x => TW_ONLY.includes(x.id)));
+      if (pos !== 'TW' && TW_ONLY.includes(q.id)) q = pick(D.QUIRKS.filter(x => !TW_ONLY.includes(x.id)));
       p.quirk = q.id;
       for (const k in q.static) p.stats[k] = clamp(p.stats[k] + q.static[k], 5, 95);
     }
@@ -108,6 +110,66 @@
     const players = [genPlayer('TW', s.tier)];
     for (const pos of ['ABW', 'MF', 'MF', 'ST', pick(['ABW', 'ST'])]) players.push(genPlayer(pos, s.tier));
     return { name: s.name, desc: s.desc, tier: s.tier, moral: 50 + stage * 2, players };
+  }
+
+  // Liga-Modus: eigenständige Vereinsgenerierung (keine Eskalation über Spieltage hinweg)
+  function genClubTeam(spec) {
+    const players = [genPlayer('TW', spec.tier)];
+    for (const pos of ['ABW', 'MF', 'MF', 'ST', pick(['ABW', 'ST'])]) players.push(genPlayer(pos, spec.tier));
+    return { name: spec.name, desc: spec.desc, tier: spec.tier, moral: 45 + irnd(-6, 6), players };
+  }
+
+  // Einfachrunde für n Teams (gerade), Team-Index 0 = du. Circle-Method.
+  function roundRobinSchedule(n) {
+    const teams = [];
+    for (let i = 0; i < n; i++) teams.push(i);
+    const rounds = [];
+    for (let r = 0; r < n - 1; r++) {
+      const pairs = [];
+      for (let i = 0; i < n / 2; i++) pairs.push([teams[i], teams[n - 1 - i]]);
+      rounds.push(pairs);
+      teams.splice(1, 0, teams.pop());
+    }
+    return rounds;
+  }
+
+  function poissonSample(lambda) {
+    const L = Math.exp(-lambda);
+    let k = 0, p = 1;
+    do { k++; p *= rnd(); } while (p > L);
+    return k - 1;
+  }
+
+  // Ergebnis zweier KI-Vereine (nicht live gespielt, für die Hintergrund-Spieltage der Liga)
+  function simulateAIMatch(tierA, tierB) {
+    const diff = (tierA - tierB) * 0.035;
+    const lamA = clamp(1.25 + diff, 0.25, 3.2);
+    const lamB = clamp(1.25 - diff, 0.25, 3.2);
+    return [poissonSample(lamA), poissonSample(lamB)];
+  }
+
+  function newLeagueTable(entries) {
+    return entries.map(e => ({ id: e.id, name: e.name, sp: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0 }));
+  }
+
+  function recordResult(table, idA, idB, golsA, golsB) {
+    const a = table.find(r => r.id === idA);
+    const b = table.find(r => r.id === idB);
+    a.sp++; b.sp++;
+    a.gf += golsA; a.ga += golsB;
+    b.gf += golsB; b.ga += golsA;
+    if (golsA > golsB) { a.w++; a.pts += 3; b.l++; }
+    else if (golsA < golsB) { b.w++; b.pts += 3; a.l++; }
+    else { a.d++; b.d++; a.pts++; b.pts++; }
+  }
+
+  function sortedTable(table) {
+    return table.slice().sort((x, y) =>
+      y.pts - x.pts ||
+      (y.gf - y.ga) - (x.gf - x.ga) ||
+      y.gf - x.gf ||
+      x.name.localeCompare(y.name)
+    );
   }
 
   // ---------- Run ----------
@@ -168,6 +230,7 @@
       const behind = sideKey === 'you' ? m.score.you < m.score.opp : m.score.opp < m.score.you;
       v += behind ? 12 : -5;
     }
+    if (key === 'zweikampf' && teamHasActiveQuirk(m, sideKey, 'kapitaen')) v += 3;
     // Fitness
     v *= 0.7 + 0.3 * (p.fitness / 100);
     // Moral
@@ -183,6 +246,18 @@
     const allYou = m.you.gk ? [m.you.gk, ...m.you.field] : [];
     if (allYou.some(p => hasQuirk(p, 'maskottchen') && !p.verletzt && !p.raus && p.fitness > 30)) mo += 5;
     return clamp(mo, 20, 100);
+  }
+
+  function teamHasActiveQuirk(m, sideKey, quirkId) {
+    const s = m[sideKey];
+    if (!s || !s.field) return false;
+    const onField = s.gk ? [s.gk, ...s.field] : s.field;
+    return onField.some(p => hasQuirk(p, quirkId));
+  }
+
+  // Stun-Dauer: „Standfest“ erholt sich in halber Zeit (min. 1 Minute)
+  function stunAmount(p, base) {
+    return hasQuirk(p, 'standfest') ? Math.max(1, Math.round(base / 2)) : base;
   }
 
   function drainFitness(p, amount) {
@@ -230,7 +305,8 @@
   // ---------- Match ----------
   const ZONE_LABELS = ['Eigene Hälfte', 'Mittelfeld', 'Vor dem Tor'];
 
-  function createMatch(run, oppTeam) {
+  function createMatch(run, oppTeam, opts) {
+    opts = opts || {};
     // Match-scoped Spielerfelder zurücksetzen
     for (const p of run.players.concat(oppTeam.players)) {
       p.stunned = 0; p.gelb = 0; p.raus = false;
@@ -248,10 +324,12 @@
       tactic: 'stellung',
       freiraum: false, querpass: false,
       buffs: Object.assign({}, run.buffs),
+      knockout: opts.knockout !== false, // false = Unentschieden erlaubt (Liga), kein Elfmeterschießen
       shootout: null,
       events: [],
       stats: { youShots: 0, oppShots: 0 },
       result: null,
+      _speedBonus: 0,
     };
     run.buffs = {}; // einmalige Buffs verbrauchen
     const ev1 = buildLineup(m.you);
@@ -410,16 +488,22 @@
   }
 
   // ---------- Schritt ausführen ----------
-  function step(m, choiceId) {
+  // opts.speedBonus: 0..~0.12, von der UI aus der Entscheidungszeit berechnet.
+  // Wirkt NUR auf die gerade gewählte Aktion (Tempo-Bonus fürs schnelle Entscheiden) und
+  // wird danach sofort wieder zurückgesetzt – nie schlechter als die reguläre Chance.
+  function step(m, choiceId, opts) {
+    m._speedBonus = (opts && typeof opts.speedBonus === 'number') ? Math.max(0, opts.speedBonus) : 0;
     m.events = [];
-    if (m.phase === 'end') return m.events;
-    if (m.phase === 'shootout') { shootoutStep(m, choiceId); return m.events; }
+    if (m.phase === 'end') { m._speedBonus = 0; return m.events; }
+    if (m.phase === 'shootout') { shootoutStep(m, choiceId); m._speedBonus = 0; return m.events; }
     if (m.phase === 'defense') {
       m.tactic = choiceId;
       simulateOppPossession(m);
+      m._speedBonus = 0;
       return m.events;
     }
     resolveAttack(m, choiceId);
+    m._speedBonus = 0;
     return m.events;
   }
 
@@ -430,7 +514,7 @@
     drainFitness(c, 2);
 
     if (actionId === 'pass') {
-      const ok = chance(probPass(m, c));
+      const ok = chance(clamp(probPass(m, c) + m._speedBonus, 0.02, 0.97));
       const mates = m.you.field.filter(p => p !== c);
       const target = zone === 2
         ? (mates.filter(p => p.pos === 'ST')[0] || pick(mates))
@@ -453,18 +537,19 @@
     }
 
     if (actionId === 'dribble') {
-      const ok = chance(probDribble(m, c));
+      const ok = chance(clamp(probDribble(m, c) + m._speedBonus, 0.02, 0.95));
       if (ok) {
         if (zone < 2) m.ball.zone = zone + 1;
         m.freiraum = true;
         log(m, 'good', say('dribbleOk', { name: c.name }));
       } else {
         const r = rnd();
-        if (r < 0.12) {
+        const foulThresh = 0.12 + (hasQuirk(c, 'schwalbenkoenig') ? 0.15 : 0);
+        if (r < foulThresh) {
           // Foul am Dribbler → Standard
           log(m, 'whistle', say('foul'));
           resolveSetPiece(m, 'you', zone);
-        } else if (r < 0.30) {
+        } else if (r < foulThresh + 0.18) {
           drainFitness(c, 8);
           log(m, 'bad', say('dribbleHurt', { name: c.name }));
           maybeInjure(m, 'you', c, 0.08, null);
@@ -478,7 +563,7 @@
     }
 
     if (actionId === 'long') {
-      const ok = chance(probLong(m, c));
+      const ok = chance(clamp(probLong(m, c) + m._speedBonus, 0.02, 0.9));
       const st = m.you.field.filter(p => p.pos === 'ST')[0] || pick(m.you.field.filter(p => p !== c)) || c;
       if (ok) {
         m.ball.zone = 2;
@@ -494,7 +579,7 @@
     if (actionId === 'shot') {
       m.stats.youShots++;
       drainFitness(c, 1);
-      const p = probShot(m, c, zone);
+      const p = clamp(probShot(m, c, zone) + m._speedBonus, 0.02, 0.95);
       m.freiraum = m.querpass = false;
       if (chance(p)) {
         scoreGoal(m, 'you', c, false);
@@ -509,16 +594,17 @@
       m.stats.youShots++;
       drainFitness(c, 4);
       m.freiraum = m.querpass = false;
-      resolvePowerShot(m, 'you', c, zone);
+      resolvePowerShot(m, 'you', c, zone, m._speedBonus);
       return;
     }
   }
 
-  function resolvePowerShot(m, sideKey, c, zone) {
+  function resolvePowerShot(m, sideKey, c, zone, extraAdjust) {
+    extraAdjust = extraAdjust || 0;
     const other = sideKey === 'you' ? 'opp' : 'you';
     const onTarget = sideKey === 'you'
-      ? chance(probPowerOnTarget(m, c, zone))
-      : chance(clamp(0.48 - (zone === 1 ? 0.13 : 0) + shotSkill(m, sideKey, c, true) * 0.0018, 0.2, 0.8));
+      ? chance(clamp(probPowerOnTarget(m, c, zone) + extraAdjust, 0.05, 0.95))
+      : chance(clamp(0.48 - (zone === 1 ? 0.13 : 0) + shotSkill(m, sideKey, c, true) * 0.0018 + extraAdjust, 0.05, 0.95));
     if (onTarget) {
       const kp = m[other].gk;
       let pGoal = clamp(0.56 + (shotSkill(m, sideKey, c, true) - effStat(m, other, kp, 'reflexe') * 0.6) * 0.005, 0.25, 0.92);
@@ -529,7 +615,7 @@
         // Gehalten – mit Wumms: kleiner Chance, dass der Keeper benommen ist
         log(m, 'bad', say('save', { name: c.name }));
         if (chance(0.2)) {
-          kp.stunned = 2;
+          kp.stunned = stunAmount(kp, 2);
           log(m, 'funny', kp.name + ' hält den Kracher – aber seine Hände vibrieren noch. Er wirkt benommen!');
         }
         possessionTo(m, other, 0);
@@ -542,7 +628,7 @@
       if (r < pHit) {
         const victims = m[other].field.filter(p => !p.raus);
         const victim = victims.length ? pick(victims) : m[other].gk;
-        victim.stunned = 3;
+        victim.stunned = stunAmount(victim, 3);
         log(m, 'funny', say('powerHitPlayer', { name: c.name, target: victim.name }));
         maybeInjure(m, other, victim, 0.12, say('powerInjure', { name: c.name, target: victim.name }));
       } else if (r < pHit + 0.22) {
@@ -642,7 +728,8 @@
       // Freistoß in Tornähe
       const shooter = bestShooter(m, sideKey);
       m.stats[sideKey === 'you' ? 'youShots' : 'oppShots']++;
-      const p = clamp(0.15 + (shotSkill(m, sideKey, shooter, false) - effStat(m, other, m[other].gk, 'reflexe')) * 0.003, 0.05, 0.35);
+      let p = clamp(0.15 + (shotSkill(m, sideKey, shooter, false) - effStat(m, other, m[other].gk, 'reflexe')) * 0.003, 0.05, 0.35);
+      if (hasQuirk(shooter, 'zauberfuss')) p = clamp(p + 0.12, 0.05, 0.5);
       if (chance(p)) {
         log(m, 'goal', say('freekickGoal', { name: shooter.name }));
         m.score[sideKey]++;
@@ -714,13 +801,13 @@
         m.stats.oppShots++;
         const kp = m.you.gk;
         if (action === 'power') {
-          resolvePowerShot(m, 'opp', carrier, zone);
+          resolvePowerShot(m, 'opp', carrier, zone, -m._speedBonus);
           return;
         }
         let p = (zone === 2 ? 0.34 : 0.14) + (shotSkill(m, 'opp', carrier, false) - effStat(m, 'you', kp, 'reflexe')) * 0.005;
         if (t === 'beton') p -= 0.10;
         if (kp.stunned > 0) p += 0.25;
-        p = clamp(p, 0.03, 0.75);
+        p = clamp(p - m._speedBonus, 0.03, 0.75);
         if (chance(p)) {
           scoreGoal(m, 'opp', carrier, false);
         } else {
@@ -732,9 +819,9 @@
 
       // Fortbewegung des Gegners
       let pOk;
-      if (action === 'pass') pOk = clamp(0.76 + (effStat(m, 'opp', carrier, 'pass') - defBase) * 0.006, 0.2, 0.92);
-      else if (action === 'dribble') pOk = clamp(0.56 + (effStat(m, 'opp', carrier, 'dribbling') - defBase) * 0.006, 0.12, 0.84);
-      else pOk = clamp(0.4 + (effStat(m, 'opp', carrier, 'pass') - defBase) * 0.005, 0.12, 0.7);
+      if (action === 'pass') pOk = clamp(0.76 + (effStat(m, 'opp', carrier, 'pass') - defBase) * 0.006 - m._speedBonus, 0.2, 0.92);
+      else if (action === 'dribble') pOk = clamp(0.56 + (effStat(m, 'opp', carrier, 'dribbling') - defBase) * 0.006 - m._speedBonus, 0.12, 0.84);
+      else pOk = clamp(0.4 + (effStat(m, 'opp', carrier, 'pass') - defBase) * 0.005 - m._speedBonus, 0.12, 0.7);
 
       if (chance(pOk)) {
         m.ball.zone = action === 'long' ? 2 : clamp(zone + 1, 0, 2);
@@ -792,8 +879,14 @@
   function endMatch(m) {
     log(m, 'whistle', say('fulltime') + '  Endstand: ' + m.score.you + ':' + m.score.opp);
     if (m.score.you === m.score.opp) {
-      log(m, 'whistle', 'Unentschieden im K.o.-Spiel – ELFMETERSCHIESSEN! Jemand holt schnell den Kreidebeutel für den Punkt.');
-      initShootout(m);
+      if (m.knockout) {
+        log(m, 'whistle', 'Unentschieden im K.o.-Spiel – ELFMETERSCHIESSEN! Jemand holt schnell den Kreidebeutel für den Punkt.');
+        initShootout(m);
+      } else {
+        m.phase = 'end';
+        m.result = 'draw';
+        log(m, 'whistle', 'Unentschieden! Ein Punkt für jeden – auch okay.');
+      }
     } else {
       m.phase = 'end';
       m.result = m.score.you > m.score.opp ? 'win' : 'loss';
@@ -863,7 +956,8 @@
       const oppCorner = weighted([['links', 40], ['rechts', 40], ['mitte', 20]]);
       let saved = false;
       if (corner === oppCorner) {
-        const pSave = clamp(0.55 + (effStat(m, 'you', m.you.gk, 'reflexe') - effStat(m, 'opp', shooter, 'schuss')) * 0.004, 0.3, 0.85);
+        let pSave = clamp(0.55 + (effStat(m, 'you', m.you.gk, 'reflexe') - effStat(m, 'opp', shooter, 'schuss')) * 0.004, 0.3, 0.85);
+        if (hasQuirk(m.you.gk, 'eisblock')) pSave = clamp(pSave + 0.10, 0.3, 0.95);
         saved = chance(pSave);
       } else {
         saved = chance(0.06); // Glücksfuß
@@ -907,15 +1001,23 @@
   }
 
   // ---------- Nach dem Spiel ----------
-  function applyResult(run, m) {
+  // opts.cup = false → Liga-Modus: Unentschieden möglich, kein Run-Ende, keine Stage-Eskalation.
+  function applyResult(run, m, opts) {
+    const cup = !opts || opts.cup !== false;
     const line = m.score.you + ':' + m.score.opp + (m.shootout ? ' (' + m.shootout.you + ':' + m.shootout.opp + ' i.E.)' : '') + ' gegen ' + m.opp.name;
-    run.history.push((m.result === 'win' ? '✅ ' : '❌ ') + line);
+    const emoji = m.result === 'win' ? '✅' : m.result === 'draw' ? '🤝' : '❌';
+    run.history.push(emoji + ' ' + line);
     if (m.result === 'win') {
       addMoral(run, 8 + (run.relics.includes('megafon') ? 5 : 0));
-      run.stage++;
-      if (run.stage >= D.STAGES.length) { run.won = true; run.over = true; }
+      if (cup) {
+        run.stage++;
+        if (run.stage >= D.STAGES.length) { run.won = true; run.over = true; }
+      }
+    } else if (m.result === 'draw') {
+      addMoral(run, 1);
     } else {
-      run.over = true;
+      addMoral(run, cup ? -2 : -3);
+      if (cup) run.over = true;
     }
     // Regeneration
     const regen = 30 + (run.relics.includes('brot') ? 15 : 0);
@@ -1086,11 +1188,12 @@
 
   return {
     STAT_KEYS, STAT_LABELS, POS_LABELS, ZONE_LABELS, DRAFT_SLOTS,
-    genPlayer, genOpponent, genTeamName, overall, quirkOf,
+    genPlayer, genOpponent, genClubTeam, genTeamName, overall, quirkOf,
     newRun, draftCandidates, addMoral,
     createMatch, situation, step, applyResult,
     rollOffers, applyOffer,
     autoChoice, autoPlayMatch,
+    roundRobinSchedule, simulateAIMatch, newLeagueTable, recordResult, sortedTable,
     _internals: { effStat, defRating, probShot, probPowerGoal },
   };
 });
