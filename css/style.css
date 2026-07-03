@@ -71,6 +71,29 @@ h1, h2, h3 { letter-spacing: 0.5px; }
 }
 .title-screen .rules li { margin: 6px 0 6px 18px; }
 
+.mode-row { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; margin-top: 24px; }
+.mode-box {
+  background: var(--card-bg);
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  padding: 20px 24px;
+  max-width: 320px;
+  text-align: center;
+}
+.mode-box h3 { font-size: 1.15rem; margin-bottom: 6px; }
+.mode-box p { color: var(--chalk-dim); font-size: 0.88rem; margin: 10px 0 16px; }
+.mode-box .btn-ghost { display: block; margin: 10px auto 0; }
+
+.mute-toggle {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  z-index: 50;
+  font-size: 0.78rem;
+  padding: 5px 11px;
+  background: rgba(4, 26, 13, 0.75);
+}
+
 button {
   font-family: inherit;
   cursor: pointer;
@@ -226,6 +249,28 @@ button:disabled { opacity: 0.45; cursor: default; }
 .prob.mid { background: rgba(255,211,77,0.22); color: var(--gold); }
 .prob.lo { background: rgba(255,122,110,0.22); color: var(--bad); }
 .action-btn .adesc { font-size: 0.76rem; color: var(--chalk-dim); font-weight: normal; margin-top: 3px; }
+
+.speed-bar { height: 5px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; margin-bottom: 4px; }
+.speed-bar-fill { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, var(--gold), var(--good)); transition: width 0.1s linear; }
+.speed-caption { font-size: 0.74rem; color: var(--chalk-dim); margin-bottom: 8px; }
+
+/* ---------- Liga-Tabelle ---------- */
+.table-wrap { overflow-x: auto; margin: 14px 0; }
+.league-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--card-bg);
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  font-size: 0.86rem;
+  font-variant-numeric: tabular-nums;
+}
+.league-table th, .league-table td { padding: 7px 10px; text-align: center; white-space: nowrap; }
+.league-table th { color: var(--chalk-dim); font-weight: normal; font-size: 0.78rem; border-bottom: 1px solid var(--line); }
+.league-table td:nth-child(2), .league-table th:nth-child(2) { text-align: left; }
+.league-table tr.me { background: rgba(255, 211, 77, 0.12); color: var(--gold); font-weight: bold; }
+.league-table tbody tr:not(:last-child) td { border-bottom: 1px solid rgba(255,255,255,0.06); }
 
 /* ---------- Ergebnis / Ende ---------- */
 .center-box { text-align: center; margin-top: 6vh; }

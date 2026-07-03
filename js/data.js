@@ -24,6 +24,15 @@
     'Fallrückzieher', 'Notbremse', 'Blutgrätsche', 'Anstoß', 'Wembley',
     'Kunstrasen', 'Elfmeter', 'Nachspielzeit', 'Bananenflanke', 'Tikitaka',
     'Konter', 'Doppelpass', 'Sechzehner', 'Ampelkarte', 'Torjubel',
+    'Seitenaus', 'Abstauber', 'Einwurf', 'Grasnarbe', 'Schienbein',
+    'Kopfball', 'Übersteiger', 'Blutwurst', 'Currywurst', 'Vereinsheim',
+    'Umkleidekabine', 'Schiedsrichter', 'Freistoß', 'Nebelhorn',
+    'Stangenfieber', 'Sonntagsschuss', 'Hexenschuss', 'Rudelbildung',
+    'Fanmeile', 'Bierzelt', 'Kreisliga', 'Verlängerung',
+    'Nachbarschaftsderby', 'Halbzeitpfiff', 'Auswechselbank',
+    'Kabinenpredigt', 'Eckfahne', 'Grätschenkönig', 'Torwartpatzer',
+    'Balljunge', 'Vereinsmeier', 'Trainerfuchs', 'Standpauke',
+    'Schummelpass', 'Torschützenkönig', 'Rasenmähermann', 'Fangesang',
   ];
 
   const NICKNAMES = [
@@ -48,6 +57,11 @@
     { id: 'betonfuss', name: 'Betonfuß', desc: 'Verzogene Powerschüsse treffen deutlich öfter einen Gegner.', static: {} },
     { id: 'maskottchen', name: 'Maskottchen', desc: 'Solange er fit auf dem Platz steht: Team-Moral +5.', static: {} },
     { id: 'wadenkrampf', name: 'Wadenkrampf', desc: '+8 Tempo, aber die Puste ist schnell weg (Fitness sinkt 50% schneller).', static: { tempo: 8 } },
+    { id: 'standfest', name: 'Standfest', desc: '+4 Zweikampf. Erholt sich doppelt so schnell von Powerschuss-Benommenheit.', static: { zweikampf: 4 } },
+    { id: 'kapitaen', name: 'Kapitän', desc: '+4 Passen. Solange er mitspielt: das ganze Team +3 Zweikampf.', static: { pass: 4 } },
+    { id: 'zauberfuss', name: 'Zauberfuß', desc: '+4 Schuss. Freistoß-Spezialist: +12% bei direkten Freistößen.', static: { schuss: 4 } },
+    { id: 'schwalbenkoenig', name: 'Schwalbenkönig', desc: '+3 Dribbling. Bei misslungenem Dribbling schauspielert er öfter ein Foul herbei.', static: { dribbling: 3 } },
+    { id: 'eisblock', name: 'Eisblock', desc: '+5 Reflexe. Im Elfmeterschießen hält er spürbar öfter.', static: { reflexe: 5 } },
   ];
 
   const RELICS = [
@@ -70,6 +84,15 @@
     { name: 'Die 10c', desc: 'Drei von denen sind eigentlich schon 18. Fragt keiner nach.', tier: 57 },
     { name: 'Dorf-Legenden 04', desc: 'Haben 2004 mal fast in der Kreisliga A gespielt. Reden noch heute davon.', tier: 62 },
     { name: 'Internatsauswahl St. Günther', desc: 'Privatschule mit eigenem Rasenroboter. Der Endgegner.', tier: 68 },
+  ];
+
+  // 5 feste Vereine für den Liga-Modus (Einfachrunde, gleichzeitig unterwegs)
+  const LEAGUE_CLUBS = [
+    { name: 'SV Blechbüchse', desc: 'Ihr Vereinsheim ist eine umgebaute Garage. Ihr Stolz ist grenzenlos.', tier: 42 },
+    { name: 'Kreisliga-Kollektiv Nord', desc: 'Spielen seit Jahren dieselbe Aufstellung. Und dasselbe Ergebnis.', tier: 48 },
+    { name: 'FC Feierabend', desc: 'Kommen direkt von der Arbeit, riechen nach Grillkohle, treten trotzdem zu.', tier: 54 },
+    { name: 'Rasenballett München-Ost', desc: 'Nennen sich "technisch versiert". Sind meistens einfach nur langsam.', tier: 58 },
+    { name: 'Alte Herren Vereinigt', desc: 'Durchschnittsalter 47, Laufbereitschaft 0. Aber die Übersicht, mein Gott.', tier: 63 },
   ];
 
   const TEAM_PREFIX = ['SV', 'FC', 'TSV', 'SG', 'Eintracht', 'Dynamo', 'Rot-Weiß', 'Blau-Gelb'];
@@ -238,7 +261,7 @@
   ];
 
   return {
-    FIRST_NAMES, LAST_NAMES, NICKNAMES, QUIRKS, RELICS, STAGES,
+    FIRST_NAMES, LAST_NAMES, NICKNAMES, QUIRKS, RELICS, STAGES, LEAGUE_CLUBS,
     TEAM_PREFIX, TEAM_SUFFIX, HAUSMEISTER, COMMENTARY, OFFER_POOL,
   };
 });
