@@ -9,8 +9,8 @@
   'use strict';
 
   // Bei jedem Release aktualisieren (Zeit in MESZ/MEZ)
-  const VERSION = '2.0.1';
-  const BUILD = '04.07.2026, 11:14 MESZ';
+  const VERSION = '2.1.0';
+  const BUILD = '04.07.2026, 11:40 MESZ';
 
   const FIRST_NAMES = [
     'Kevin', 'Marcel', 'Torben', 'Ronny', 'Justin', 'Dennis', 'Maik', 'Björn',
