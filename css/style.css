@@ -159,6 +159,51 @@ h2 {
   padding: 5px 11px;
 }
 
+.options-toggle {
+  position: fixed;
+  top: 10px;
+  right: 96px;
+  z-index: 50;
+  font-size: 0.78rem;
+  padding: 5px 11px;
+}
+
+/* ---------- Optionen-Panel ---------- */
+.options-panel {
+  position: fixed;
+  top: 48px;
+  right: 10px;
+  z-index: 60;
+  width: min(320px, calc(100vw - 20px));
+  background: var(--wood);
+  border: 3px solid var(--ink);
+  border-radius: 2px;
+  box-shadow: inset 3px 3px 0 var(--wood-hi), inset -3px -3px 0 var(--wood-lo), 0 6px 0 rgba(0,0,0,0.45);
+  padding: 14px 16px;
+}
+.options-panel h3 {
+  font-size: 0.95rem;
+  color: var(--gold);
+  letter-spacing: 1px;
+  margin-bottom: 10px;
+  text-shadow: 2px 2px 0 rgba(0,0,0,0.5);
+}
+.options-panel .opt-row { margin-bottom: 12px; }
+.options-panel .opt-label { font-size: 0.86rem; font-weight: bold; margin-bottom: 5px; }
+.options-panel .opt-btns { display: flex; gap: 6px; }
+.options-panel .opt-choice {
+  flex: 1;
+  font-size: 0.82rem;
+  padding: 5px 10px;
+}
+.options-panel .opt-choice.on {
+  background: #1e4d2a;
+  color: var(--good);
+  box-shadow: inset 2px 2px 0 rgba(0,0,0,0.35), 0 2px 0 rgba(0,0,0,0.4);
+}
+.options-panel .opt-desc { font-size: 0.74rem; color: var(--chalk-dim); margin-top: 5px; }
+.options-panel .opt-close { display: block; margin: 4px auto 0; font-size: 0.8rem; }
+
 .version-badge {
   position: fixed;
   bottom: 8px;
@@ -385,6 +430,7 @@ button:disabled { opacity: 0.45; cursor: default; }
 .prob.hi { background: #1e4d2a; color: var(--good); }
 .prob.mid { background: #4d3d14; color: var(--gold); }
 .prob.lo { background: #4d1e18; color: var(--bad); }
+.prob.unknown { background: #2c2c34; color: var(--chalk-dim); min-width: 26px; text-align: center; }
 .action-btn .adesc { font-size: 0.76rem; color: var(--chalk-dim); font-weight: normal; margin-top: 3px; }
 
 .speed-bar { height: 8px; background: #241610; border: 2px solid var(--ink); overflow: hidden; margin-bottom: 4px; }

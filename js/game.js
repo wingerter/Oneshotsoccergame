@@ -8,6 +8,23 @@
   const app = document.getElementById('app');
   const SAVE_KEY = 'bolzplatz-legenden-save';
   const SAVE_KEY_LEAGUE = 'bolzplatz-legenden-league-save';
+  const OPTIONS_KEY = 'bolzplatz-legenden-options';
+
+  // ---------- Optionen (Tempo-Bonus & Schwierigkeit) ----------
+  const DEFAULT_OPTIONS = { tempoBonus: true, difficulty: 'normal' }; // difficulty: 'normal' | 'schwer'
+  let options = loadOptions();
+
+  function loadOptions() {
+    try {
+      const raw = localStorage.getItem(OPTIONS_KEY);
+      const parsed = raw ? JSON.parse(raw) : {};
+      return Object.assign({}, DEFAULT_OPTIONS, parsed);
+    } catch (e) { return Object.assign({}, DEFAULT_OPTIONS); }
+  }
+  function saveOptions() {
+    try { localStorage.setItem(OPTIONS_KEY, JSON.stringify(options)); } catch (e) { /* egal */ }
+  }
+  function hideProbs() { return options.difficulty === 'schwer'; }
 
   let mode = 'cup';        // 'cup' | 'league'
   let run = null;
@@ -116,8 +133,8 @@
         <img class="pixel-art hero-sprite h2 hero-bob" alt="" src="${heroes[0].url}" title="${heroes[0].name}">
         <div class="rules">
           <li>🎲 <b>Drafte</b> ein Team aus fragwürdigen Talenten mit noch fragwürdigeren Marotten.</li>
-          <li>🎯 <b>Faires Glück:</b> Jede Aktion zeigt ihre Erfolgschance. Du entscheidest, wie viel Risiko du gehst.</li>
-          <li>⚡ <b>Tempo-Bonus:</b> Schnelle Entscheidungen bekommen einen Extra-Prozentpunkte-Bonus, der mit der Zeit verfällt – nie schlechter als die normale Chance, aber schneller ist besser.</li>
+          <li>🎯 <b>Faires Glück:</b> Jede Aktion zeigt ihre Erfolgschance. Du entscheidest, wie viel Risiko du gehst. (Auf „Schwer“ bleiben die Chancen versteckt.)</li>
+          <li>⚡ <b>Tempo-Bonus:</b> Schnelle Entscheidungen bekommen einen Extra-Prozentpunkte-Bonus, der mit der Zeit verfällt – nie schlechter als die normale Chance, aber schneller ist besser. (In den ⚙️ Optionen abschaltbar.)</li>
           <li>💥 <b>Powerschüsse</b> sind ungenau – aber verzogene Bälle schießen schon mal einen Gegner um.</li>
           <li>🍰 Zwischen den Spielen: Training, Kuchenverkauf und dubiose Energydrinks.</li>
         </div>
@@ -406,11 +423,13 @@
     return pct >= 60 ? 'hi' : pct >= 35 ? 'mid' : 'lo';
   }
   function probBadge(p) {
+    if (hideProbs()) return `<span class="prob unknown" title="Schwierigkeit „Schwer“: Chancen sind versteckt">?</span>`;
     return `<span class="prob ${probClass(p)}">${Math.round(p * 100)}%</span>`;
   }
 
   // ---------- Tempo-Bonus: schnelle Entscheidungen bekommen einen Bonus, der verfällt ----------
   function currentSpeedBonus() {
+    if (!options.tempoBonus) return 0;
     if (decisionStart == null) return 0;
     const elapsed = Date.now() - decisionStart;
     const frac = Math.max(0, 1 - elapsed / SPEED_DECAY_MS);
@@ -431,13 +450,15 @@
 
   function updateSpeedBadges() {
     const bonus = currentSpeedBonus();
-    sitEl.querySelectorAll('.action-btn').forEach(btn => {
-      const base = btn.dataset.baseProb;
-      if (base === undefined || base === '') return;
-      const disp = Math.min(0.97, parseFloat(base) + bonus);
-      const badge = btn.querySelector('.prob');
-      if (badge) { badge.textContent = Math.round(disp * 100) + '%'; badge.className = 'prob ' + probClass(disp); }
-    });
+    if (!hideProbs()) {
+      sitEl.querySelectorAll('.action-btn').forEach(btn => {
+        const base = btn.dataset.baseProb;
+        if (base === undefined || base === '') return;
+        const disp = Math.min(0.97, parseFloat(base) + bonus);
+        const badge = btn.querySelector('.prob');
+        if (badge) { badge.textContent = Math.round(disp * 100) + '%'; badge.className = 'prob ' + probClass(disp); }
+      });
+    }
     const fill = sitEl.querySelector('.speed-bar-fill');
     if (fill) fill.style.width = Math.round((bonus / SPEED_MAX_BONUS) * 100) + '%';
     if (bonus <= 0.0001 && decisionTimerHandle) { clearInterval(decisionTimerHandle); decisionTimerHandle = null; }
@@ -464,7 +485,8 @@
     sitEl.innerHTML = `<div class="sit-text">${head}</div>`;
 
     const isAttack = sit.type === 'attack';
-    if (isAttack) {
+    const speedOn = isAttack && options.tempoBonus;
+    if (speedOn) {
       sitEl.appendChild(el('div', 'speed-bar', '<div class="speed-bar-fill"></div>'));
       sitEl.appendChild(el('div', 'speed-caption', '⚡ Tempo-Bonus: schnell entscheiden lohnt sich'));
     }
@@ -472,7 +494,7 @@
     const actions = el('div', 'actions');
     for (const o of sit.options) {
       const btn = el('button', 'action-btn');
-      if (isAttack && o.prob !== undefined) btn.dataset.baseProb = String(o.prob);
+      if (o.prob !== undefined) btn.dataset.baseProb = String(o.prob);
       btn.innerHTML = `<span class="toprow"><span>${esc(o.label)}</span>${o.prob !== undefined ? probBadge(o.prob) : ''}</span>` +
         (o.desc ? `<span class="adesc">${esc(o.desc)}</span>` : '');
       btn.addEventListener('click', () => onChoice(o.id));
@@ -480,7 +502,46 @@
     }
     sitEl.appendChild(actions);
 
-    if (isAttack) startDecisionTimer();
+    if (speedOn) startDecisionTimer();
+  }
+
+  // Optionen mitten in einer laufenden Entscheidung anwenden (Panel wurde umgestellt)
+  function applyOptionsLive() {
+    if (!match || !sitEl || !sitEl.isConnected) return;
+    const actions = sitEl.querySelector('.actions');
+    if (!actions) return;
+    const anyEnabled = Array.from(actions.querySelectorAll('button')).some(b => !b.disabled);
+    if (!anyEnabled) return;
+
+    const bar = sitEl.querySelector('.speed-bar');
+    const isAttackDecision = !!actions.querySelector('.action-btn[data-base-prob]');
+    if (!options.tempoBonus) {
+      clearDecisionTimer();
+      if (bar) bar.remove();
+      const cap = sitEl.querySelector('.speed-caption');
+      if (cap) cap.remove();
+    } else if (isAttackDecision && !bar) {
+      const sitText = sitEl.querySelector('.sit-text');
+      const newBar = el('div', 'speed-bar', '<div class="speed-bar-fill"></div>');
+      const newCap = el('div', 'speed-caption', '⚡ Tempo-Bonus: schnell entscheiden lohnt sich');
+      if (sitText) sitText.after(newBar, newCap);
+      startDecisionTimer();
+    }
+
+    sitEl.querySelectorAll('.action-btn').forEach(btn => {
+      const badge = btn.querySelector('.prob');
+      if (!badge) return;
+      if (hideProbs()) {
+        badge.textContent = '?';
+        badge.className = 'prob unknown';
+      } else {
+        const base = btn.dataset.baseProb;
+        if (base === undefined || base === '') return;
+        const p = Math.min(0.97, parseFloat(base) + currentSpeedBonus());
+        badge.textContent = Math.round(p * 100) + '%';
+        badge.className = 'prob ' + probClass(p);
+      }
+    });
   }
 
   function onChoice(id) {
@@ -706,6 +767,57 @@
     app.appendChild(f);
   }
 
+  // ⚙️ Optionen: Tempo-Bonus an/aus, Schwierigkeit Normal/Schwer
+  function initOptionsToggle() {
+    const b = document.createElement('button');
+    b.className = 'btn-ghost options-toggle';
+    b.textContent = '⚙️ Optionen';
+    let panel = null;
+
+    const close = () => { if (panel) { panel.remove(); panel = null; } };
+
+    function renderPanel() {
+      panel.innerHTML = `
+        <h3>⚙️ Optionen</h3>
+        <div class="opt-row">
+          <div class="opt-label">⚡ Tempo-Bonus (Timer)</div>
+          <div class="opt-btns">
+            <button class="opt-choice ${options.tempoBonus ? 'on' : ''}" data-opt="tempo" data-val="1">An</button>
+            <button class="opt-choice ${!options.tempoBonus ? 'on' : ''}" data-opt="tempo" data-val="0">Aus</button>
+          </div>
+          <div class="opt-desc">Aus = kein Zeitdruck: Der Bonus-Countdown entfällt komplett und du kannst die Spielberichte in aller Ruhe lesen.</div>
+        </div>
+        <div class="opt-row">
+          <div class="opt-label">🎯 Schwierigkeit</div>
+          <div class="opt-btns">
+            <button class="opt-choice ${options.difficulty === 'normal' ? 'on' : ''}" data-opt="diff" data-val="normal">Normal</button>
+            <button class="opt-choice ${options.difficulty === 'schwer' ? 'on' : ''}" data-opt="diff" data-val="schwer">Schwer</button>
+          </div>
+          <div class="opt-desc">Schwer: Die Prozentzahlen der Aktionen werden versteckt – du entscheidest nach Gefühl statt nach der höchsten Zahl.</div>
+        </div>
+        <button class="btn-ghost opt-close">Schließen</button>
+      `;
+      panel.querySelectorAll('.opt-choice').forEach(cb => cb.addEventListener('click', () => {
+        sfxClick();
+        if (cb.dataset.opt === 'tempo') options.tempoBonus = cb.dataset.val === '1';
+        else options.difficulty = cb.dataset.val;
+        saveOptions();
+        renderPanel();
+        applyOptionsLive();
+      }));
+      panel.querySelector('.opt-close').addEventListener('click', () => { sfxClick(); close(); });
+    }
+
+    b.addEventListener('click', () => {
+      sfxClick();
+      if (panel) { close(); return; }
+      panel = el('div', 'options-panel');
+      renderPanel();
+      document.body.appendChild(panel);
+    });
+    document.body.appendChild(b);
+  }
+
   function initMuteToggle() {
     if (!S) return;
     const b = document.createElement('button');
@@ -734,6 +846,7 @@
 
   // Los geht's
   initBackdrop();
+  initOptionsToggle();
   initMuteToggle();
   initVersionBadge();
   showTitle();
