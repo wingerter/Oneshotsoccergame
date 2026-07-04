@@ -4,6 +4,7 @@
   const E = window.SoccerEngine;
   const D = window.SoccerData;
   const S = window.SoccerSound;
+  const Art = window.SoccerArt;
   const app = document.getElementById('app');
   const SAVE_KEY = 'bolzplatz-legenden-save';
   const SAVE_KEY_LEAGUE = 'bolzplatz-legenden-league-save';
@@ -53,8 +54,13 @@
     const q = E.quirkOf(p);
     const card = el('div', 'card');
     card.innerHTML = `
-      <h3>${esc(p.name)}</h3>
-      <div class="pos">${E.POS_LABELS[p.pos]} · Gesamt ${E.overall(p)}</div>
+      <div class="card-top">
+        <span class="portrait-frame"><img class="pixel-art pp-lg" alt="" src="${Art.portraitURL(p)}"></span>
+        <div class="card-id">
+          <h3>${esc(p.name)}</h3>
+          <div class="pos">${E.POS_LABELS[p.pos]} · Gesamt ${E.overall(p)}</div>
+        </div>
+      </div>
       ${statBars(p)}
       ${q ? `<div class="quirk"><b>${esc(q.name)}:</b> ${esc(q.desc)}</div>` : '<div class="quirk" style="opacity:.5">Keine Marotte. Verdächtig normal.</div>'}
     `;
@@ -96,15 +102,26 @@
     const savedCup = loadRun();
     const savedLeague = loadLeague();
     const s = el('div', 'title-screen');
+    const ball = `<img class="pixel-art" alt="" src="${Art.ballURL()}">`;
+    // Zwei zufällige Legenden flankieren die Regeln
+    const heroes = [
+      { url: Art.heroURL(), name: 'Der Zeigefinger der Kreisklasse' },
+      { url: Art.heroFredURL(), name: 'Feuerball Fred' },
+      { url: Art.heroPadreURL(), name: 'Padre Peng' },
+    ].sort(() => Math.random() - 0.5).slice(0, 2);
     s.innerHTML = `
-      <h1>⚽ BOLZPLATZ-LEGENDEN</h1>
+      <h1>${ball} BOLZPLATZ-LEGENDEN ${ball}</h1>
       <div class="sub">Ein Fußball-Roguelike aus den Tiefen der Kreisklasse</div>
-      <div class="rules">
-        <li>🎲 <b>Drafte</b> ein Team aus fragwürdigen Talenten mit noch fragwürdigeren Marotten.</li>
-        <li>🎯 <b>Faires Glück:</b> Jede Aktion zeigt ihre Erfolgschance. Du entscheidest, wie viel Risiko du gehst.</li>
-        <li>⚡ <b>Tempo-Bonus:</b> Schnelle Entscheidungen bekommen einen Extra-Prozentpunkte-Bonus, der mit der Zeit verfällt – nie schlechter als die normale Chance, aber schneller ist besser.</li>
-        <li>💥 <b>Powerschüsse</b> sind ungenau – aber verzogene Bälle schießen schon mal einen Gegner um.</li>
-        <li>🍰 Zwischen den Spielen: Training, Kuchenverkauf und dubiose Energydrinks.</li>
+      <div class="title-hero-row">
+        <img class="pixel-art hero-sprite h2 hero-bob" alt="" src="${heroes[0].url}" title="${heroes[0].name}">
+        <div class="rules">
+          <li>🎲 <b>Drafte</b> ein Team aus fragwürdigen Talenten mit noch fragwürdigeren Marotten.</li>
+          <li>🎯 <b>Faires Glück:</b> Jede Aktion zeigt ihre Erfolgschance. Du entscheidest, wie viel Risiko du gehst.</li>
+          <li>⚡ <b>Tempo-Bonus:</b> Schnelle Entscheidungen bekommen einen Extra-Prozentpunkte-Bonus, der mit der Zeit verfällt – nie schlechter als die normale Chance, aber schneller ist besser.</li>
+          <li>💥 <b>Powerschüsse</b> sind ungenau – aber verzogene Bälle schießen schon mal einen Gegner um.</li>
+          <li>🍰 Zwischen den Spielen: Training, Kuchenverkauf und dubiose Energydrinks.</li>
+        </div>
+        <img class="pixel-art hero-sprite h1 hero-bob" alt="" src="${heroes[1].url}" title="${heroes[1].name}">
       </div>
     `;
 
@@ -216,9 +233,9 @@
 
     const vs = el('div', 'vs-box');
     const yourCard = el('div', 'card');
-    yourCard.innerHTML = `<h3>${esc(run.teamName)}</h3><div class="pos">Dein Haufen</div>` + squadOverviewRows();
+    yourCard.innerHTML = `<div class="card-top"><img class="pixel-art crest-md" alt="" src="${Art.crestURL(run.teamName)}"><div class="card-id"><h3>${esc(run.teamName)}</h3><div class="pos">Dein Haufen</div></div></div>` + squadOverviewRows();
     const oppCard = el('div', 'card');
-    oppCard.innerHTML = `<h3>${esc(stage.name)}</h3><div class="pos">Gefahr: <span class="stars">${stars}</span></div><div class="desc">${esc(stage.desc)}</div>`;
+    oppCard.innerHTML = `<div class="card-top"><img class="pixel-art crest-md" alt="" src="${Art.crestURL(stage.name)}"><div class="card-id"><h3>${esc(stage.name)}</h3><div class="pos">Gefahr: <span class="stars">${stars}</span></div></div></div><div class="desc">${esc(stage.desc)}</div>`;
     vs.appendChild(yourCard);
     vs.appendChild(el('div', 'vs', 'VS'));
     vs.appendChild(oppCard);
@@ -257,7 +274,7 @@
   }
 
   // ---------- Match (gemeinsam für Pokal & Liga) ----------
-  let logEl, sitEl, scoreEl, squadEl, pendingEvents, revealTimer;
+  let logEl, sitEl, scoreEl, squadEl, pitchEl, pendingEvents, revealTimer;
   let decisionStart = null, decisionTimerHandle = null;
   const SPEED_MAX_BONUS = 0.12;
   const SPEED_DECAY_MS = 5000;
@@ -268,6 +285,11 @@
 
     scoreEl = el('div', 'scoreboard');
     app.appendChild(scoreEl);
+
+    const pw = el('div', 'pitch-wrap');
+    pitchEl = Art.makePitchCanvas();
+    pw.appendChild(pitchEl);
+    app.appendChild(pw);
 
     const grid = el('div', 'match-grid');
     logEl = el('div', 'log');
@@ -307,12 +329,13 @@
   function refreshScore() {
     const so = match.shootout;
     scoreEl.innerHTML = `
-      <span class="teamname">${esc(run.teamName)}</span>
+      <span class="teamname"><img class="pixel-art crest-sm" alt="" src="${Art.crestURL(run.teamName)}"><span>${esc(run.teamName)}</span></span>
       <span class="minute">${Math.min(90, Math.floor(match.minute))}'</span>
       <span class="score">${match.score.you}:${match.score.opp}${so ? ` <small style="font-size:0.9rem">(${so.you}:${so.opp} i.E.)</small>` : ''}</span>
       <span class="minute">${moralEmoji(run.moral)}</span>
-      <span class="teamname right">${esc(match.opp.name)}</span>
+      <span class="teamname right"><img class="pixel-art crest-sm" alt="" src="${Art.crestURL(match.opp.name)}"><span>${esc(match.opp.name)}</span></span>
     `;
+    if (pitchEl) Art.drawPitch(pitchEl, match);
   }
 
   function squadLine(p, isCarrier) {
@@ -324,6 +347,7 @@
     const fitClass = p.fitness < 40 ? 'low' : '';
     return `<div class="p">
       <span class="carrier-dot">${isCarrier ? '⚽' : ''}</span>
+      <img class="pixel-art" alt="" src="${Art.portraitURL(p)}">
       <span class="nm" title="${esc(p.name)}">${esc(p.name)} <small>(${p.pos})</small></span>
       ${icons}
       <span class="fit"><i class="${fitClass}" style="width:${p.fitness}%"></i></span>
@@ -545,7 +569,8 @@
     const box = el('div', 'center-box');
     if (run.won) {
       box.innerHTML = `
-        <div class="huge">🏆🎉 POKALSIEGER!! 🎉🏆</div>
+        <div class="huge">🎉 POKALSIEGER!! 🎉</div>
+        <img class="pixel-art trophy" alt="Pokal" src="${Art.trophyURL()}">
         <p>${esc(run.teamName)} hat tatsächlich ALLE geschlagen.<br>
         Der Plastikpokal wird noch heute mit Limo gefüllt. Ihr seid <b>Bolzplatz-Legenden</b>.</p>`;
     } else {
@@ -622,9 +647,9 @@
 
     const vs = el('div', 'vs-box');
     const yourCard = el('div', 'card');
-    yourCard.innerHTML = `<h3>${esc(run.teamName)}</h3><div class="pos">Dein Haufen</div>` + squadOverviewRows();
+    yourCard.innerHTML = `<div class="card-top"><img class="pixel-art crest-md" alt="" src="${Art.crestURL(run.teamName)}"><div class="card-id"><h3>${esc(run.teamName)}</h3><div class="pos">Dein Haufen</div></div></div>` + squadOverviewRows();
     const oppCard = el('div', 'card');
-    oppCard.innerHTML = `<h3>${esc(club.name)}</h3><div class="pos">Stärke ${club.tier}</div><div class="desc">${esc(club.desc)}</div>`;
+    oppCard.innerHTML = `<div class="card-top"><img class="pixel-art crest-md" alt="" src="${Art.crestURL(club.name)}"><div class="card-id"><h3>${esc(club.name)}</h3><div class="pos">Stärke ${club.tier}</div></div></div><div class="desc">${esc(club.desc)}</div>`;
     vs.appendChild(yourCard);
     vs.appendChild(el('div', 'vs', 'VS'));
     vs.appendChild(oppCard);
@@ -699,7 +724,16 @@
     document.body.appendChild(v);
   }
 
+  // Gemalter Abendhimmel hinter allem
+  function initBackdrop() {
+    if (!Art) return;
+    const c = Art.backdropCanvas();
+    c.className = 'backdrop';
+    document.body.insertBefore(c, document.body.firstChild);
+  }
+
   // Los geht's
+  initBackdrop();
   initMuteToggle();
   initVersionBadge();
   showTitle();

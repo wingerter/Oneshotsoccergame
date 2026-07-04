@@ -26,12 +26,29 @@ Der Spielstand wird automatisch vor jedem Spiel in `localStorage` gesichert.
 
 ```
 index.html      Einstieg
-css/style.css   Kreide-auf-Rasen-Optik
+css/style.css   Retro-Adventure-Optik (VGA-Dämmerung, Holzpanels, Scanlines)
 js/data.js      Namen, Marotten, Gegner, Events, Kommentartexte
+js/art.js       Pixel-Art-Engine: Porträts, Wappen, Helden, Spielfeld (prozedural, keine Assets)
 js/engine.js    Spiellogik (UI-unabhängig, läuft auch in Node)
 js/game.js      UI-Controller (Screens, Match-Ablauf, Save)
 sim/sim.js      Balance-Simulation
 ```
+
+## Grafik
+
+Die komplette 2D-Grafik wird zur Laufzeit prozedural auf kleine Canvases gemalt und
+hochskaliert (`image-rendering: pixelated`) – im Charme alter Point-&-Click-Adventures:
+
+- **Spielerporträts** (seeded pro Spieler, stabil über Save/Load): Vokuhilas, Schnauzer,
+  Zahnlücken, rote Nasen, Pflaster, Drahtbrillen … Marotten färben aufs Porträt ab
+  (Kapitänsbinde, Heiligenschein fürs Maskottchen, grimmige Brauen für Rasenmäher).
+- **Vereinswappen** (seeded pro Teamname) auf Anzeigetafel und Spielplakaten.
+- **Titelhelden**: Feuerball Fred, Padre Peng und der Zeigefinger der Kreisklasse –
+  zwei von dreien flankieren zufällig den Titel.
+- **Abendlicher Bolzplatz** als gemalter Hintergrund (VGA-Sonnenuntergang, Flutlicht,
+  Kirchturm) plus **Mini-Spielfeld** im Match, das Ballbesitz und Zone live anzeigt.
+
+Es werden weiterhin keinerlei externe Assets geladen – alles läuft direkt vom Dateisystem.
 
 ## Balance-Simulation
 
