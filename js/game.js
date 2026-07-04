@@ -522,19 +522,14 @@
     if (!anyEnabled) return;
 
     const bar = sitEl.querySelector('.speed-bar');
-    const isAttackDecision = !!actions.querySelector('.action-btn[data-base-prob]');
     if (!options.tempoBonus) {
       clearDecisionTimer();
       if (bar) bar.remove();
       const cap = sitEl.querySelector('.speed-caption');
       if (cap) cap.remove();
-    } else if (isAttackDecision && !bar) {
-      const sitText = sitEl.querySelector('.sit-text');
-      const newBar = el('div', 'speed-bar', '<div class="speed-bar-fill"></div>');
-      const newCap = el('div', 'speed-caption', '⚡ Tempo-Bonus: schnell entscheiden lohnt sich');
-      if (sitText) sitText.after(newBar, newCap);
-      startDecisionTimer();
     }
+    // Wieder-Einschalten greift erst bei der nächsten Entscheidung – sonst
+    // könnte man den ablaufenden Bonus per Aus/An-Toggle auf volle Höhe zurücksetzen.
 
     sitEl.querySelectorAll('.action-btn').forEach(btn => {
       const badge = btn.querySelector('.prob');
