@@ -156,6 +156,14 @@
     modeRow.appendChild(leagueBox);
 
     s.appendChild(modeRow);
+
+    if (window.SoccerIntro) {
+      const introBtn = el('button', 'btn-ghost', '🎬 Intro nochmal ansehen');
+      introBtn.style.marginTop = '20px';
+      introBtn.addEventListener('click', () => { sfxClick(); window.SoccerIntro.play(showTitle); });
+      s.appendChild(introBtn);
+    }
+
     app.appendChild(s);
   }
 
@@ -732,9 +740,14 @@
     document.body.insertBefore(c, document.body.firstChild);
   }
 
-  // Los geht's
+  // Los geht's – erst das Intro (überspringbar), dann der Titel
   initBackdrop();
   initMuteToggle();
   initVersionBadge();
-  showTitle();
+  const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (window.SoccerIntro && !reduceMotion) {
+    window.SoccerIntro.play(showTitle);
+  } else {
+    showTitle();
+  }
 })();

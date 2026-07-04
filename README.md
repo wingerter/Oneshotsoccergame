@@ -30,9 +30,21 @@ css/style.css   Retro-Adventure-Optik (VGA-Dämmerung, Holzpanels, Scanlines)
 js/data.js      Namen, Marotten, Gegner, Events, Kommentartexte
 js/art.js       Pixel-Art-Engine: Porträts, Wappen, Helden, Spielfeld (prozedural, keine Assets)
 js/engine.js    Spiellogik (UI-unabhängig, läuft auch in Node)
+js/sound.js     Synthetisierte Soundeffekte + Intro-Chiptune (Web Audio)
+js/intro.js     Intro-Cutscene (Dribbling → Tor → Stadion-Zoom → Titel)
 js/game.js      UI-Controller (Screens, Match-Ablauf, Save)
 sim/sim.js      Balance-Simulation
 ```
+
+## Intro
+
+Beim Start läuft eine kurze, komplett prozedural gerenderte **Intro-Cutscene** im
+Pixel-Stil des Spiels: Ein Spieler dribbelt zwei Gegner aus, hämmert den Ball in den
+Winkel, die Kamera fährt raus übers Flutlicht-Stadion und der Titel wird eingeblendet –
+untermalt von einem kleinen Chiptune-Track (Web Audio, keine Audiodateien).
+Jederzeit überspringbar per Klick, Taste oder Button; vom Titelbildschirm aus
+wiederholbar („🎬 Intro nochmal ansehen"). Bei `prefers-reduced-motion` wird das
+Intro automatisch übersprungen.
 
 ## Grafik
 
