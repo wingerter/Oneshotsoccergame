@@ -2,6 +2,9 @@
 
 Ein humorvolles **Fußball-Roguelike** aus den Tiefen der Kreisklasse – im Browser, ohne Installation, ohne Build-Step.
 
+<img width="659" height="506" alt="image" src="https://github.com/user-attachments/assets/9c5624a0-ea21-4c2a-910b-24a9ad87d6d2" />
+
+
 ## Spielen
 
 `index.html` im Browser öffnen. Fertig. (Funktioniert direkt vom Dateisystem, kein Server nötig.)
